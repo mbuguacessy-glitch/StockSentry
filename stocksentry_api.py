@@ -751,25 +751,26 @@ def monthly_report(warehouse_id: str, month: str):
                         all_variances[brand_id]["flagged_count"] += 1
 
         orders = session.query(SalesOrder).filter(
-            SalesOrder.warehouse_id == warehouse_id,
-            SalesOrder.created_at.cast(
-                String).like(f"{month}%")
+            SalesOrder.warehouse_id == warehouse_id
         ).all()
 
-        return {
-            "warehouse_id": warehouse_id,
-            "month": month,
-            "summary": {
-                "total_shifts": total_shifts,
-                "approved_shifts": approved_shifts,
-                "flagged_shifts": flagged_shifts,
-                "total_orders": len(orders),
-                "escalated_orders": len(
-                    [o for o in orders if o.escalated])
-            },
-            "brand_variances": all_variances,
-            "message": f"Monthly report generated. Previously took 2 days manually."
-        }
+ # Filter by month in Python instead
+    orders = [o for o in orders if str(o.created_at).startswith(month)]
+
+    return {
+        "warehouse_id": warehouse_id,
+        "month": month,
+        "summary": {
+            "total_shifts": total_shifts,
+            "approved_shifts": approved_shifts,
+            "flagged_shifts": flagged_shifts,
+            "total_orders": len(orders),
+            "escalated_orders": len(
+                [o for o in orders if o.escalated])
+        },
+        "brand_variances": all_variances,
+        "message": f"Monthly report generated. Previously took 2 days manually."
+    }
 
 
 @app.get("/health")
