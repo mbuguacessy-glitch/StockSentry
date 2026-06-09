@@ -1,0 +1,162 @@
+{
+    "warehouses": [
+        {
+            "id": "WH001",
+            "name": "Beer Warehouse",
+            "location": "Main Plant"
+        },
+        {
+            "id": "WH002",
+            "name": "Keg Warehouse",
+            "location": "Main Plant"
+        },
+        {
+            "id": "WH003",
+            "name": "UDV Warehouse",
+            "location": "Main Plant"
+        }
+    ],
+    "brands": [
+        {
+            "id": "TK500B",
+            "name": "Tusker 500ml Bottle",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "TK300B",
+            "name": "Tusker 300ml Bottle",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "TK500C",
+            "name": "Tusker 500ml Can",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "GN300B",
+            "name": "Guinness 300ml Bottle",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "GN500B",
+            "name": "Guinness 500ml Bottle",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "GN300C",
+            "name": "Guinness 300ml Can",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "GN500C",
+            "name": "Guinness 500ml Can",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "GNS300B",
+            "name": "Guinness Smooth 300ml Bottle",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "GNS500B",
+            "name": "Guinness Smooth 500ml Bottle",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "PL500B",
+            "name": "Pilsner 500ml Bottle",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "BL500B",
+            "name": "Balozi 500ml Bottle",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "WC500B",
+            "name": "White Cap 500ml Bottle",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "TM500B",
+            "name": "Tusker Malt 500ml Bottle",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "TL500B",
+            "name": "Tusker Lite 500ml Bottle",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "TC500B",
+            "name": "Tusker Cider 500ml Bottle",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "TN500B",
+            "name": "Tusker Ndovu 500ml Bottle",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "MN001",
+            "name": "Manyatta Original",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "MN002",
+            "name": "Manyatta Gold",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "MN003",
+            "name": "Manyatta Premium",
+            "warehouse": "WH001",
+            "unit": "crate"
+        }
+    ],
+    "shifts": [
+        {
+            "id": "morning",
+            "name": "Morning Shift",
+            "start": "06:00",
+            "end": "14:00"
+        },
+        {
+            "id": "afternoon",
+            "name": "Afternoon Shift",
+            "start": "14:00",
+            "end": "22:00"
+        },
+        {
+            "id": "night",
+            "name": "Night Shift",
+            "start": "22:00",
+            "end": "06:00"
+        }
+    ],
+    "variance_threshold": 0,
+    "company": "Kenya Breweries Limited",
+    "escalation_contacts": {
+        "supervisor_slack": "#warehouse-supervisors",
+        "security_slack": "#security-team",
+        "management_slack": "#warehouse-management"
+    }
+}
