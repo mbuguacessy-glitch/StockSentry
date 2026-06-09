@@ -1,133 +1,134 @@
 {
+    "company": "BrewCo Manufacturing Ltd",
     "warehouses": [
         {
             "id": "WH001",
-            "name": "Beer Warehouse",
-            "location": "Main Plant"
+            "name": "Main Warehouse",
+            "location": "Production Plant A"
         },
         {
             "id": "WH002",
-            "name": "Keg Warehouse",
-            "location": "Main Plant"
+            "name": "Secondary Warehouse",
+            "location": "Production Plant B"
         },
         {
             "id": "WH003",
-            "name": "UDV Warehouse",
-            "location": "Main Plant"
+            "name": "Distribution Warehouse",
+            "location": "Dispatch Hub"
         }
     ],
     "brands": [
         {
-            "id": "TK500B",
-            "name": "Tusker 500ml Bottle",
+            "id": "AL500B",
+            "name": "Alpha Lager 500ml Bottle",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
-            "id": "TK300B",
-            "name": "Tusker 300ml Bottle",
+            "id": "AL300B",
+            "name": "Alpha Lager 300ml Bottle",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
-            "id": "TK500C",
-            "name": "Tusker 500ml Can",
+            "id": "AL500C",
+            "name": "Alpha Lager 500ml Can",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
-            "id": "GN300B",
-            "name": "Guinness 300ml Bottle",
+            "id": "DS300B",
+            "name": "Dark Stout 300ml Bottle",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
-            "id": "GN500B",
-            "name": "Guinness 500ml Bottle",
+            "id": "DS500B",
+            "name": "Dark Stout 500ml Bottle",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
-            "id": "GN300C",
-            "name": "Guinness 300ml Can",
+            "id": "DS300C",
+            "name": "Dark Stout 300ml Can",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
-            "id": "GN500C",
-            "name": "Guinness 500ml Can",
-            "warehouse": "WH001",
-            "unit": "crate"
-        },
-        {
-            "id": "GNS300B",
-            "name": "Guinness Smooth 300ml Bottle",
-            "warehouse": "WH001",
-            "unit": "crate"
-        },
-        {
-            "id": "GNS500B",
-            "name": "Guinness Smooth 500ml Bottle",
+            "id": "DS500C",
+            "name": "Dark Stout 500ml Can",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
             "id": "PL500B",
-            "name": "Pilsner 500ml Bottle",
+            "name": "Premium Lager 500ml Bottle",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
-            "id": "BL500B",
-            "name": "Balozi 500ml Bottle",
+            "id": "EL500B",
+            "name": "Economy Lager 500ml Bottle",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
-            "id": "WC500B",
-            "name": "White Cap 500ml Bottle",
+            "id": "LL500B",
+            "name": "Light Lager 500ml Bottle",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
-            "id": "TM500B",
-            "name": "Tusker Malt 500ml Bottle",
+            "id": "ML500B",
+            "name": "Malt Lager 500ml Bottle",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
-            "id": "TL500B",
-            "name": "Tusker Lite 500ml Bottle",
+            "id": "FC330B",
+            "name": "Fruit Cider 330ml Bottle",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
-            "id": "TC500B",
-            "name": "Tusker Cider 500ml Bottle",
+            "id": "FC500B",
+            "name": "Fruit Cider 500ml Bottle",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
-            "id": "TN500B",
-            "name": "Tusker Ndovu 500ml Bottle",
+            "id": "TB750B",
+            "name": "Traditional Brew 750ml Bottle",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
-            "id": "MN001",
-            "name": "Manyatta Original",
+            "id": "TB500B",
+            "name": "Traditional Brew 500ml Bottle",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
-            "id": "MN002",
-            "name": "Manyatta Gold",
+            "id": "SL500B",
+            "name": "Strong Lager 500ml Bottle",
             "warehouse": "WH001",
             "unit": "crate"
         },
         {
-            "id": "MN003",
-            "name": "Manyatta Premium",
+            "id": "WL330C",
+            "name": "Wheat Lager 330ml Can",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "GL500B",
+            "name": "Gold Lager 500ml Bottle",
+            "warehouse": "WH001",
+            "unit": "crate"
+        },
+        {
+            "id": "RL500B",
+            "name": "Red Lager 500ml Bottle",
             "warehouse": "WH001",
             "unit": "crate"
         }
@@ -153,7 +154,6 @@
         }
     ],
     "variance_threshold": 0,
-    "company": "Kenya Breweries Limited",
     "escalation_contacts": {
         "supervisor_slack": "#warehouse-supervisors",
         "security_slack": "#security-team",

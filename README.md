@@ -1,4 +1,4 @@
-# StockSentry — AI Warehouse Stock Reconciliation
+# StockSentry: AI Warehouse Stock Reconciliation
 
 A real-time warehouse stock reconciliation system that replaces manual paper-based shift records with a digital audit trail. Built for manufacturing facilities handling multiple shifts, multiple warehouses, and high-volume daily stock movements.
 
@@ -132,15 +132,15 @@ Monthly report generated in one click
 ## Real Test Results
 
 **Shift variance detected:**
-- Guinness 300ml — Opening: 120 | Sold: 26 | Expected: 94 | Actual: 92 | **Variance: -2**
+- Dark Stout 300ml — Opening: 120 | Sold: 26 | Expected: 94 | Actual: 92 | **Variance: -2**
 - System flagged immediately, supervisor notified via Slack
 
 **Order variance detected:**
-- Tusker 500ml — Ordered: 50 | Dispatched: 48 | **Variance: 2**
+-Alpha Lager 500ml — Ordered: 50 | Dispatched: 48 | **Variance: 2**
 - Checker and forklift operator logged, escalated to security
 
 **Transit variance detected:**
-- Tusker 500ml movement — Sent: 100 | Received: 98 | **Variance: -2**
+- Alpha Lager 500ml movement — Sent: 100 | Received: 98 | **Variance: -2**
 - Both warehouses notified immediately
 
 **Monthly report:**
@@ -165,20 +165,20 @@ Monthly report generated in one click
 ## Screenshots
 
 ### API Documentation
-![API Docs](https://imgur.com/z1On1Y9.png)
+![API Docs](https://imgur.com/0VHe1YN.png)
 
 ### Shift Variance Detection
-![Shift Variance 1](https://imgur.com/IP21OW2.png)
-![Shift Variance 2](https://imgur.com/ip2ZzUz.png)
+![Shift Variance](https://imgur.com/9Yq2xhX.png)
 
 ### Order Escalation
-![Order Escalation](https://imgur.com/mA77hLY.png)
+![Order Escalation](https://imgur.com/OnIjq5r.png)
 
 ### Monthly Report
-![Monthly Report](https://imgur.com/IJfsHxj.png)
+![Monthly Report 1](https://imgur.com/eVRDxw8.png)
+![Monthly Report 2](https://imgur.com/RbLRqlV.png)
 
 ### Audit Log
-![Audit Log](https://imgur.com/0B1WFUO.png)
+![Audit Log](https://imgur.com/4j8rild.png)
 
 
 ## Environment Variables
