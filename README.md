@@ -165,17 +165,17 @@ Monthly report generated in one click
 ## Screenshots
 
 ### API Documentation
-![API Docs](https://i.imgur.com/0VHe1YN.png)
+![API Docs](https://i.imgur.com/1FSH1nt.png)
 
 ### Shift Variance Detection
-![Shift Variance](https://i.imgur.com/9Yq2xhX.png)
+![Shift Variance](https://i.imgur.com/rB7lihE.png)
 
 ### Order Escalation
-![Order Escalation](https://i.imgur.com/OnIjq5r.png)
+![Order Escalation](https://i.imgur.com/uQIrell.png)
 
 ### Monthly Report
-![Monthly Report 1](https://i.imgur.com/eVRDxw8.png)
-![Monthly Report 2](https://i.imgur.com/RbLRqlV.png)
+![Monthly Report 1](https://i.imgur.com/mlLe33i.png)
+![Monthly Report 2](https://i.imgur.com/sg7PHp1.png)
 
 ### Audit Log
 ![Audit Log](https://i.imgur.com/4j8rild.png)
