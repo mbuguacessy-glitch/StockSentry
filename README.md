@@ -1,5 +1,7 @@
 # StockSentry: AI Warehouse Stock Reconciliation
 
+🌐 **Live Landing Page:** [stocksentry-landing.vercel.app](https://stocksentry-landing.vercel.app)
+
 A real-time warehouse stock reconciliation system that replaces manual paper-based shift records with a digital audit trail. Built for manufacturing facilities handling multiple shifts, multiple warehouses, and high-volume daily stock movements.
 
 ---
