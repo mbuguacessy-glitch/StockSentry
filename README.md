@@ -8,7 +8,7 @@ A real-time warehouse stock reconciliation system that replaces manual paper-bas
 
 ## The Problem It Solves
 
-At a large manufacturing facility like Kenya Breweries, stock reconciliation is done manually:
+At large manufacturing facilities, stock reconciliation is done manually:
 
 - Clerks record stock counts on paper forms every shift
 - Small variances of 1-2 crates are ignored daily — "acceptable loss"
