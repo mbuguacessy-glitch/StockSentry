@@ -134,22 +134,38 @@ async def send_slack_notification(channel: str, message: str):
         print(f"Slack notification failed: {e}")
 
 
-def generate_shift_summary(shift_record: dict, variances: dict) -> str:
-    """Claude generates plain language shift summary."""
+def generate_shift_summary(shift_record: dict, variances: dict) -> dict:
+    """Claude generates structured shift summary with AI analysis."""
     flagged = {k: v for k, v in variances.items() if v["status"] == "flagged"}
     ok_count = len(variances) - len(flagged)
 
     response = client.messages.create(
         model="claude-opus-4-5",
         max_tokens=500,
+        temperature=0.7,
+        system=f"""You are a warehouse management AI for {BRANDS_DATA['company']}.
+Your job is to write concise shift summaries for supervisors.
+
+Rules you always follow:
+- Keep every summary under 150 words
+- Be direct and factual, no filler language
+- Always state the number of brands with variance
+- If variances exist, always recommend a specific next action
+- Never speculate about theft unless pattern data confirms it
+- Write in plain English a non-technical supervisor can understand
+
+Respond ONLY in valid JSON. No explanation, no preamble, no markdown code blocks.
+Use exactly this structure:
+{{
+  "summary": "plain language shift summary under 150 words",
+  "shift_status": "clean or flagged",
+  "variance_count": 0,
+  "recommended_action": "specific next step for the supervisor",
+  "security_required": false
+}}""",
         messages=[{
             "role": "user",
-            "content": f"""You are a warehouse management AI for {BRANDS_DATA['company']}.
-
-Write a concise shift summary in plain language for the supervisor.
-Keep it under 150 words. Be direct and factual.
-
-Shift Details:
+            "content": f"""Write the shift summary for:
 - Warehouse: {shift_record['warehouse_name']}
 - Shift: {shift_record['shift']}
 - Date: {shift_record['date']}
@@ -158,21 +174,115 @@ Shift Details:
 - Brands with variance: {len(flagged)}
 
 Variances detected:
-{json.dumps(flagged, indent=2) if flagged else "None"}
-
-Write the summary covering:
-1. Overall shift status
-2. Any variances and what action is needed
-3. Recommended next step for the supervisor"""
+{json.dumps(flagged, indent=2) if flagged else "None"}"""
         }]
     )
 
-    return response.content[0].text
+    try:
+        result = json.loads(response.content[0].text)
+    except json.JSONDecodeError:
+        result = {
+            "summary": response.content[0].text,
+            "shift_status": "flagged" if flagged else "clean",
+            "variance_count": len(flagged),
+            "recommended_action": "Review variance details manually.",
+            "security_required": False
+        }
 
+    return result
+
+def classify_variance_causes(flagged: dict, shift_record: dict) -> dict:
+    """Claude uses chain of thought to classify likely cause of each variance."""
+    if not flagged:
+        return {}
+
+    response = client.messages.create(
+        model="claude-opus-4-5",
+        max_tokens=800,
+        temperature=0.5,
+        system=f"""You are a warehouse investigation AI for {BRANDS_DATA['company']}.
+Your job is to classify the likely cause of each stock variance detected at shift close.
+
+Classification rules you always follow:
+- DATA_ENTRY_ERROR: small variance of 1-2 units, isolated to one brand, first occurrence
+- LOADING_ERROR: variance on multiple brands in same shift, involves high volume brands
+- THEFT: recurring variance on same brand across multiple shifts, or large unexplained variance above 5 units
+- UNKNOWN: insufficient information to classify confidently
+
+Respond ONLY in valid JSON. No explanation, no preamble, no markdown code blocks.
+Use exactly this structure for each brand:
+{{
+  "brand_id": {{
+    "brand_name": "string",
+    "variance": 0,
+    "reasoning": "step by step thinking about the cause",
+    "classification": "DATA_ENTRY_ERROR or LOADING_ERROR or THEFT or UNKNOWN",
+    "confidence": "high or medium or low",
+    "recommended_check": "specific physical action to take"
+  }}
+}}""",
+        messages=[{
+            "role": "user",
+            "content": f"""Classify the likely cause of each variance detected.
+Think through each one step by step before classifying.
+
+Warehouse: {shift_record['warehouse_name']}
+Shift: {shift_record['shift']}
+Date: {shift_record['date']}
+Clerk: {shift_record['clerk_name']}
+
+Flagged variances:
+{json.dumps(flagged, indent=2)}"""
+        }]
+    )
+
+    try:
+        result = json.loads(response.content[0].text)
+    except json.JSONDecodeError:
+        result = {}
+
+    return result
+
+def check_historical_pattern(warehouse_id: str, flagged: dict) -> dict:
+    """Query database for recurring variance patterns per brand."""
+    patterns = {}
+
+    with Session(engine) as session:
+        for brand_id in flagged.keys():
+            recent_shifts = session.query(ShiftRecord).filter(
+                ShiftRecord.warehouse_id == warehouse_id,
+                ShiftRecord.status.in_(["flagged", "approved"]),
+                ShiftRecord.variances.isnot(None)
+            ).order_by(ShiftRecord.created_at.desc()).limit(30).all()
+
+            brand_variances = []
+            for shift in recent_shifts:
+                if shift.variances and brand_id in shift.variances:
+                    v = shift.variances[brand_id]
+                    if v["status"] == "flagged":
+                        brand_variances.append({
+                            "date": shift.date,
+                            "shift": shift.shift,
+                            "clerk": shift.clerk_name,
+                            "variance": v["variance"]
+                        })
+
+            if brand_variances:
+                total_variance = sum(v["variance"] for v in brand_variances)
+                patterns[brand_id] = {
+                    "brand_name": flagged[brand_id]["brand_name"],
+                    "occurrences": len(brand_variances),
+                    "total_variance": total_variance,
+                    "history": brand_variances,
+                    "is_recurring": len(brand_variances) >= 3,
+                    "escalate_to_security": len(brand_variances) >= 3 or abs(total_variance) >= 10
+                }
+
+    return patterns
 
 def process_shift_close(shift_record_id: str, closing_stock: dict,
                         clerk_name: str):
-    """Background task: calculate variances and notify supervisor."""
+    """Background task: calculate variances, classify causes, detect patterns, notify supervisor."""
     with Session(engine) as session:
         shift = session.get(ShiftRecord, shift_record_id)
         if not shift:
@@ -230,30 +340,63 @@ def process_shift_close(shift_record_id: str, closing_stock: dict,
         shift.updated_at = datetime.now(timezone.utc)
         session.commit()
 
-        # Generate Claude summary
+        # Build shift dict for AI functions
         shift_dict = {
             "warehouse_name": shift.warehouse_name,
             "shift": shift.shift,
             "date": shift.date,
             "clerk_name": clerk_name
         }
-        summary = generate_shift_summary(shift_dict, variances)
 
-        # Build Slack message
-        status_emoji = "🔴" if has_variance else "✅"
+        # Generate structured shift summary
+        summary_data = generate_shift_summary(shift_dict, variances)
+
+        # Classify variance causes and check patterns if variances exist
+        variance_classifications = {}
+        patterns = {}
+        if has_variance:
+            variance_classifications = classify_variance_causes(
+                flagged, shift_dict)
+            patterns = check_historical_pattern(
+                shift.warehouse_id, flagged)
+
+        # Determine if security notification needed
+        security_required = summary_data.get("security_required", False)
+        recurring_brands = [
+            brand_id for brand_id, p in patterns.items()
+            if p.get("escalate_to_security", False)
+        ]
+        if recurring_brands:
+            security_required = True
+
+        # Build variance detail text for Slack
         variance_text = ""
         if flagged:
             variance_text = "\n\n*Variances Detected:*\n"
             for brand_id, data in flagged.items():
-                variance_text += f"• {data['brand_name']}: Expected {data['expected_closing']} | Actual {data['actual_closing']} | Variance: {data['variance']:+d}\n"
+                classification = variance_classifications.get(brand_id, {})
+                pattern = patterns.get(brand_id, {})
 
+                variance_text += f"• *{data['brand_name']}*: Expected {data['expected_closing']} | Actual {data['actual_closing']} | Variance: {data['variance']:+d}\n"
+
+                if classification:
+                    variance_text += f"  _Likely cause: {classification.get('classification', 'UNKNOWN')} ({classification.get('confidence', 'low')} confidence)_\n"
+                    variance_text += f"  _Check: {classification.get('recommended_check', 'Review manually')}_\n"
+
+                if pattern and pattern.get("is_recurring"):
+                    variance_text += f"  ⚠️ _RECURRING: {pattern['occurrences']} occurrences in last 30 shifts. Total loss: {pattern['total_variance']:+d} units_\n"
+
+        # Build Slack message
+        status_emoji = "🔴" if has_variance else "✅"
         slack_message = f"""{status_emoji} *StockSentry Shift Summary*
 *Warehouse:* {shift.warehouse_name}
 *Shift:* {shift.shift} | *Date:* {shift.date}
 *Clerk:* {clerk_name}
 
 *AI Analysis:*
-{summary}
+{summary_data.get('summary', 'Summary unavailable')}
+
+*Recommended Action:* {summary_data.get('recommended_action', 'None')}
 {variance_text}
 *Shift ID:* `{shift_record_id}`
 Use this ID to sign off or investigate."""
@@ -264,7 +407,20 @@ Use this ID to sign off or investigate."""
             slack_message
         ))
 
-        if has_variance:
+        # Security notification — triggered by summary AI or recurring pattern
+        if security_required:
+            security_message = f"🔴 *SECURITY ALERT* — {shift.warehouse_name} {shift.shift} shift on {shift.date}.\n"
+            if recurring_brands:
+                for brand_id in recurring_brands:
+                    p = patterns[brand_id]
+                    security_message += f"• {p['brand_name']}: {p['occurrences']} recurring variances. Total: {p['total_variance']:+d} units.\n"
+            security_message += f"\nShift ID: `{shift_record_id}` — Immediate investigation recommended."
+
+            asyncio.run(send_slack_notification(
+                BRANDS_DATA["escalation_contacts"]["security_slack"],
+                security_message
+            ))
+        elif has_variance:
             asyncio.run(send_slack_notification(
                 BRANDS_DATA["escalation_contacts"]["security_slack"],
                 f"🔴 *VARIANCE ALERT* — {shift.warehouse_name} {shift.shift} shift on {shift.date}. {len(flagged)} brand(s) flagged. Shift ID: `{shift_record_id}`"
@@ -275,7 +431,7 @@ Use this ID to sign off or investigate."""
             id=generate_id("aud"),
             event_type="shift_closed",
             warehouse_id=shift.warehouse_id,
-            description=f"Shift closed by {clerk_name}. {len(flagged)} variances detected.",
+            description=f"Shift closed by {clerk_name}. {len(flagged)} variances detected. Security required: {security_required}.",
             clerk_name=clerk_name,
             decided_by="system",
             outcome="flagged" if has_variance else "pending_approval"
