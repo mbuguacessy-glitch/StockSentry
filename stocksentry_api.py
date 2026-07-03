@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime, timezone
 from typing import Optional
-from stocksentry_models import engine, ShiftRecord, SalesOrder, IntWarehouseMovement, AuditLog, generate_id
+from stocksentry_models import engine, ShiftRecord, SalesOrder, IntWarehouseMovement, AuditLog, Breakage, ShiftEdit, ExpiryAlert, generate_id
 from anthropic import Anthropic
 from dotenv import load_dotenv
 import httpx
@@ -81,7 +81,46 @@ class EscalateOrder(BaseModel):
     escalated_by: str
 
 
+class RecordBreakage(BaseModel):
+    shift_record_id: str
+    warehouse_id: str
+    brand_id: str
+    brand_name: str
+    quantity: int
+    reason: str  # breakage or leaker
+    description: Optional[str] = None
+    clerk_name: str
+
+
+class RequestShiftEdit(BaseModel):
+    shift_record_id: str
+    warehouse_id: str
+    field_edited: str  # opening_stock or closing_stock
+    brand_id: str
+    brand_name: str
+    original_value: int
+    edited_value: int
+    reason: str
+    edited_by: str
+
+
+class ApproveShiftEdit(BaseModel):
+    edit_id: str
+    approved_by: str
+    approved: bool
+
+
+class RecordExpiryAlert(BaseModel):
+    shift_record_id: str
+    warehouse_id: str
+    brand_id: str
+    brand_name: str
+    quantity: int
+    expiry_date: str
+    clerk_name: str
+
 # --- Helper functions ---
+
 
 def get_brand_name(brand_id: str) -> str:
     for brand in BRANDS_DATA["brands"]:
@@ -191,6 +230,7 @@ Variances detected:
 
     return result
 
+
 def classify_variance_causes(flagged: dict, shift_record: dict) -> dict:
     """Claude uses chain of thought to classify likely cause of each variance."""
     if not flagged:
@@ -243,6 +283,7 @@ Flagged variances:
 
     return result
 
+
 def check_historical_pattern(warehouse_id: str, flagged: dict) -> dict:
     """Query database for recurring variance patterns per brand."""
     patterns = {}
@@ -279,6 +320,7 @@ def check_historical_pattern(warehouse_id: str, flagged: dict) -> dict:
                 }
 
     return patterns
+
 
 def process_shift_close(shift_record_id: str, closing_stock: dict,
                         clerk_name: str):
@@ -927,6 +969,329 @@ def monthly_report(warehouse_id: str, month: str):
         "brand_variances": all_variances,
         "message": f"Monthly report generated. Previously took 2 days manually."
     }
+
+
+@app.post("/breakages/record")
+def record_breakage(data: RecordBreakage):
+    """Record stock lost to breakage or leakage during a shift."""
+    with Session(engine) as session:
+        shift = session.get(ShiftRecord, data.shift_record_id)
+        if not shift:
+            raise HTTPException(
+                status_code=404, detail="Shift record not found")
+        if shift.status != "open":
+            raise HTTPException(status_code=400, detail="Shift is not open")
+
+        breakage = Breakage(
+            id=generate_id("brk"),
+            shift_record_id=data.shift_record_id,
+            warehouse_id=data.warehouse_id,
+            brand_id=data.brand_id,
+            brand_name=data.brand_name,
+            quantity=data.quantity,
+            reason=data.reason,
+            description=data.description,
+            clerk_name=data.clerk_name
+        )
+        session.add(breakage)
+
+        audit = AuditLog(
+            id=generate_id("aud"),
+            event_type="breakage_recorded",
+            warehouse_id=data.warehouse_id,
+            description=f"{data.quantity} crates of {data.brand_name} lost to {data.reason}. {data.description or ''}",
+            clerk_name=data.clerk_name,
+            decided_by="clerk",
+            outcome="breakage_logged"
+        )
+        session.add(audit)
+        session.commit()
+
+        return {
+            "breakage_id": breakage.id,
+            "brand": data.brand_name,
+            "quantity": data.quantity,
+            "reason": data.reason,
+            "message": f"{data.quantity} crates of {data.brand_name} recorded as {data.reason}"
+        }
+
+
+@app.get("/breakages")
+def list_breakages(shift_record_id: str = None, warehouse_id: str = None):
+    """List all breakages optionally filtered by shift or warehouse."""
+    with Session(engine) as session:
+        query = session.query(Breakage)
+        if shift_record_id:
+            query = query.filter(Breakage.shift_record_id == shift_record_id)
+        if warehouse_id:
+            query = query.filter(Breakage.warehouse_id == warehouse_id)
+        breakages = query.order_by(Breakage.created_at.desc()).all()
+        return [
+            {
+                "id": b.id,
+                "shift_record_id": b.shift_record_id,
+                "brand": b.brand_name,
+                "quantity": b.quantity,
+                "reason": b.reason,
+                "description": b.description,
+                "clerk": b.clerk_name,
+                "created_at": b.created_at
+            }
+            for b in breakages
+        ]
+
+
+@app.post("/shifts/edit/request")
+def request_shift_edit(data: RequestShiftEdit):
+    """Clerk requests an edit to a shift record after reconciliation."""
+    with Session(engine) as session:
+        shift = session.get(ShiftRecord, data.shift_record_id)
+        if not shift:
+            raise HTTPException(
+                status_code=404, detail="Shift record not found")
+        if shift.status == "open":
+            raise HTTPException(status_code=400,
+                                detail="Shift is still open. Edit directly before closing.")
+
+        edit = ShiftEdit(
+            id=generate_id("edt"),
+            shift_record_id=data.shift_record_id,
+            warehouse_id=data.warehouse_id,
+            field_edited=data.field_edited,
+            brand_id=data.brand_id,
+            brand_name=data.brand_name,
+            original_value=data.original_value,
+            edited_value=data.edited_value,
+            reason=data.reason,
+            edited_by=data.edited_by,
+            status="pending"
+        )
+        session.add(edit)
+
+        audit = AuditLog(
+            id=generate_id("aud"),
+            event_type="shift_edit_requested",
+            warehouse_id=data.warehouse_id,
+            description=f"Edit requested by {data.edited_by} on {data.field_edited} for {data.brand_name}. Original: {data.original_value} Edited: {data.edited_value}. Reason: {data.reason}",
+            clerk_name=data.edited_by,
+            decided_by="clerk",
+            outcome="pending_supervisor_approval"
+        )
+        session.add(audit)
+        session.commit()
+
+        import asyncio
+        asyncio.run(send_slack_notification(
+            BRANDS_DATA["escalation_contacts"]["supervisor_slack"],
+            f"✏️ *SHIFT EDIT REQUEST*\nShift: `{data.shift_record_id}`\nBrand: {data.brand_name}\nField: {data.field_edited}\nOriginal: {data.original_value} | Edited: {data.edited_value}\nReason: {data.reason}\nRequested by: {data.edited_by}\nEdit ID: `{edit.id}`"
+        ))
+
+        return {
+            "edit_id": edit.id,
+            "status": "pending",
+            "message": "Edit request submitted. Supervisor approval required."
+        }
+
+
+@app.post("/shifts/edit/approve")
+def approve_shift_edit(data: ApproveShiftEdit):
+    """Supervisor approves or rejects a shift edit request."""
+    with Session(engine) as session:
+        edit = session.get(ShiftEdit, data.edit_id)
+        if not edit:
+            raise HTTPException(
+                status_code=404, detail="Edit request not found")
+
+        edit.approved_by = data.approved_by
+        edit.status = "approved" if data.approved else "rejected"
+
+        if data.approved:
+            shift = session.get(ShiftRecord, edit.shift_record_id)
+            if shift:
+                stock = dict(getattr(shift, edit.field_edited) or {})
+                stock[edit.brand_id] = edit.edited_value
+                setattr(shift, edit.field_edited, stock)
+                shift.updated_at = datetime.now(timezone.utc)
+
+        audit = AuditLog(
+            id=generate_id("aud"),
+            event_type="shift_edit_approved" if data.approved else "shift_edit_rejected",
+            warehouse_id=edit.warehouse_id,
+            description=f"Edit {'approved' if data.approved else 'rejected'} by {data.approved_by}. Brand: {edit.brand_name}. Original: {edit.original_value} Edited: {edit.edited_value}",
+            clerk_name=data.approved_by,
+            decided_by="supervisor",
+            outcome="approved" if data.approved else "rejected"
+        )
+        session.add(audit)
+        session.commit()
+
+        return {
+            "edit_id": data.edit_id,
+            "status": edit.status,
+            "message": f"Edit {'approved and applied' if data.approved else 'rejected'} by {data.approved_by}"
+        }
+
+
+@app.get("/shifts/edits/{shift_record_id}")
+def get_shift_edits(shift_record_id: str):
+    """Get all edit requests for a shift showing original and edited values."""
+    with Session(engine) as session:
+        edits = session.query(ShiftEdit).filter(
+            ShiftEdit.shift_record_id == shift_record_id
+        ).order_by(ShiftEdit.created_at.desc()).all()
+        return [
+            {
+                "id": e.id,
+                "field_edited": e.field_edited,
+                "brand": e.brand_name,
+                "original_value": e.original_value,
+                "edited_value": e.edited_value,
+                "reason": e.reason,
+                "edited_by": e.edited_by,
+                "approved_by": e.approved_by,
+                "status": e.status,
+                "created_at": e.created_at
+            }
+            for e in edits
+        ]
+
+
+@app.post("/expiry/record")
+def record_expiry_alert(data: RecordExpiryAlert):
+    """Record a short expiry alert for a brand."""
+    from datetime import date
+    expiry = datetime.strptime(data.expiry_date, "%Y-%m-%d").date()
+    today = date.today()
+    days_to_expiry = (expiry - today).days
+
+    with Session(engine) as session:
+        alert = ExpiryAlert(
+            id=generate_id("exp"),
+            shift_record_id=data.shift_record_id,
+            warehouse_id=data.warehouse_id,
+            brand_id=data.brand_id,
+            brand_name=data.brand_name,
+            quantity=data.quantity,
+            expiry_date=data.expiry_date,
+            days_to_expiry=days_to_expiry,
+            clerk_name=data.clerk_name,
+            status="active"
+        )
+        session.add(alert)
+
+        audit = AuditLog(
+            id=generate_id("aud"),
+            event_type="expiry_alert",
+            warehouse_id=data.warehouse_id,
+            description=f"{data.quantity} crates of {data.brand_name} expiring in {days_to_expiry} days on {data.expiry_date}",
+            clerk_name=data.clerk_name,
+            decided_by="clerk",
+            outcome="expiry_flagged"
+        )
+        session.add(audit)
+        session.commit()
+
+        if days_to_expiry <= 30:
+            import asyncio
+            asyncio.run(send_slack_notification(
+                BRANDS_DATA["escalation_contacts"]["supervisor_slack"],
+                f"⚠️ *SHORT EXPIRY ALERT*\nBrand: {data.brand_name}\nQuantity: {data.quantity} crates\nExpiry date: {data.expiry_date}\nDays remaining: {days_to_expiry}\nWarehouse: {data.warehouse_id}\nReported by: {data.clerk_name}"
+            ))
+
+        return {
+            "alert_id": alert.id,
+            "brand": data.brand_name,
+            "quantity": data.quantity,
+            "expiry_date": data.expiry_date,
+            "days_to_expiry": days_to_expiry,
+            "message": f"{data.brand_name} expiring in {days_to_expiry} days. Supervisor notified." if days_to_expiry <= 30 else f"Expiry alert recorded. {days_to_expiry} days remaining."
+        }
+
+
+@app.get("/expiry/alerts")
+def list_expiry_alerts(warehouse_id: str = None, status: str = "active"):
+    """List all expiry alerts optionally filtered by warehouse."""
+    with Session(engine) as session:
+        query = session.query(ExpiryAlert).filter(
+            ExpiryAlert.status == status
+        )
+        if warehouse_id:
+            query = query.filter(ExpiryAlert.warehouse_id == warehouse_id)
+        alerts = query.order_by(ExpiryAlert.days_to_expiry.asc()).all()
+        return [
+            {
+                "id": a.id,
+                "brand": a.brand_name,
+                "quantity": a.quantity,
+                "expiry_date": a.expiry_date,
+                "days_to_expiry": a.days_to_expiry,
+                "clerk": a.clerk_name,
+                "status": a.status,
+                "created_at": a.created_at
+            }
+            for a in alerts
+        ]
+
+
+@app.get("/inventory/current")
+def current_inventory(warehouse_id: str, date: str = None):
+    """Get current stock levels per brand calculated from all shift activity."""
+    target_date = date or datetime.now().strftime("%Y-%m-%d")
+
+    with Session(engine) as session:
+        shifts = session.query(ShiftRecord).filter(
+            ShiftRecord.warehouse_id == warehouse_id,
+            ShiftRecord.date == target_date
+        ).order_by(ShiftRecord.created_at.desc()).all()
+
+        if not shifts:
+            return {
+                "warehouse_id": warehouse_id,
+                "date": target_date,
+                "message": "No shifts found for this date",
+                "inventory": {}
+            }
+
+        latest_shift = shifts[0]
+        inventory = {}
+
+        if latest_shift.closing_stock:
+            base_stock = latest_shift.closing_stock
+        else:
+            base_stock = latest_shift.opening_stock or {}
+
+        for brand_id, qty in base_stock.items():
+            inventory[brand_id] = {
+                "brand_name": get_brand_name(brand_id),
+                "quantity": qty,
+                "status": "ok"
+            }
+
+        breakages = session.query(Breakage).filter(
+            Breakage.shift_record_id == latest_shift.id
+        ).all()
+
+        for b in breakages:
+            if b.brand_id in inventory:
+                inventory[b.brand_id]["quantity"] -= b.quantity
+                inventory[b.brand_id]["breakage_loss"] = b.quantity
+
+        expiry_alerts = session.query(ExpiryAlert).filter(
+            ExpiryAlert.warehouse_id == warehouse_id,
+            ExpiryAlert.status == "active"
+        ).all()
+
+        expiring_brands = {a.brand_id for a in expiry_alerts}
+        for brand_id in expiring_brands:
+            if brand_id in inventory:
+                inventory[brand_id]["expiry_warning"] = True
+
+        return {
+            "warehouse_id": warehouse_id,
+            "date": target_date,
+            "last_updated": latest_shift.updated_at,
+            "inventory": inventory
+        }
 
 
 @app.get("/health")

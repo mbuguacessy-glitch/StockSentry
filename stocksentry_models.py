@@ -111,6 +111,68 @@ class AuditLog(Base):
         return f"<AuditLog id={self.id} event={self.event_type} warehouse={self.warehouse_id}>"
 
 
+class Breakage(Base):
+    """Records stock lost to breakage or leakage during a shift."""
+    __tablename__ = "breakages"
+
+    id = Column(String, primary_key=True)
+    shift_record_id = Column(String, nullable=False)
+    warehouse_id = Column(String, nullable=False)
+    brand_id = Column(String, nullable=False)
+    brand_name = Column(String, nullable=False)
+    quantity = Column(Integer, nullable=False)
+    reason = Column(String, nullable=False)  # breakage or leaker
+    description = Column(Text)
+    clerk_name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return f"<Breakage id={self.id} brand={self.brand_name} qty={self.quantity} reason={self.reason}>"
+
+
+class ShiftEdit(Base):
+    """Records every edit made to a shift record after reconciliation."""
+    __tablename__ = "shift_edits"
+
+    id = Column(String, primary_key=True)
+    shift_record_id = Column(String, nullable=False)
+    warehouse_id = Column(String, nullable=False)
+    # opening_stock or closing_stock
+    field_edited = Column(String, nullable=False)
+    brand_id = Column(String, nullable=False)
+    brand_name = Column(String, nullable=False)
+    original_value = Column(Integer, nullable=False)
+    edited_value = Column(Integer, nullable=False)
+    reason = Column(Text, nullable=False)
+    edited_by = Column(String, nullable=False)
+    approved_by = Column(String, nullable=True)
+    status = Column(String, default="pending")  # pending, approved, rejected
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return f"<ShiftEdit id={self.id} shift={self.shift_record_id} brand={self.brand_name} original={self.original_value} edited={self.edited_value}>"
+
+
+class ExpiryAlert(Base):
+    """Records short expiry flags per brand per shift."""
+    __tablename__ = "expiry_alerts"
+
+    id = Column(String, primary_key=True)
+    shift_record_id = Column(String, nullable=False)
+    warehouse_id = Column(String, nullable=False)
+    brand_id = Column(String, nullable=False)
+    brand_name = Column(String, nullable=False)
+    quantity = Column(Integer, nullable=False)
+    expiry_date = Column(String, nullable=False)
+    days_to_expiry = Column(Integer, nullable=False)
+    clerk_name = Column(String, nullable=False)
+    status = Column(String, default="active")  # active, resolved
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def __repr__(self):
+        return f"<ExpiryAlert id={self.id} brand={self.brand_name} expiry={self.expiry_date} days={self.days_to_expiry}>"
+
+
 def generate_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex[:8]}"
 
@@ -123,3 +185,6 @@ if __name__ == "__main__":
     print("  - sales_orders")
     print("  - interwarehouse_movements")
     print("  - stocksentry_audit")
+    print("  - breakages")
+    print("  - shift_edits")
+    print("  - expiry_alerts")
