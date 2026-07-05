@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime, timezone
@@ -12,7 +13,13 @@ import os
 
 load_dotenv()
 
-app = FastAPI(title="StockSentry — Warehouse Stock Reconciliation")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
