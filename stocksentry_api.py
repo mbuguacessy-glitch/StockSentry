@@ -13,6 +13,8 @@ import os
 
 load_dotenv()
 
+app = FastAPI(title="StockSentry — Warehouse Stock Reconciliation")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
