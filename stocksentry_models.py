@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import os
 import uuid
 
-load_dotenv()
+load_dotenv(override=False)
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL, echo=False)
