@@ -12,7 +12,7 @@ load_dotenv(dotenv_path=os.path.join(
 DATABASE_URL = os.environ.get("DATABASE_URL") or os.getenv("DATABASE_URL")
 # Use Supabase if localhost is detected (Railway deployment fix)
 if not DATABASE_URL or "localhost" in DATABASE_URL:
-    DATABASE_URL = "postgresql://postgres:Pass.wamb2096@db.aoxsyzoolntxnnmcrgbe.supabase.co:5432/postgres?sslmode=require"
+    DATABASE_URL = "postgresql://postgres.aoxsyzoolntxnnmcrgbe:Pass.wamb2096@aws-0-eu-central-1.pooler.supabase.com:6543/postgres"
 print(
     f"DATABASE_URL being used: {DATABASE_URL[:30] if DATABASE_URL else 'None'}")
 engine = create_engine(DATABASE_URL, echo=False)
