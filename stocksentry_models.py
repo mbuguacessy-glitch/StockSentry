@@ -6,9 +6,10 @@ from dotenv import load_dotenv
 import os
 import uuid
 
-load_dotenv(override=False)
+load_dotenv(dotenv_path=os.path.join(
+    os.path.dirname(__file__), '.env'), override=False)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.environ.get("DATABASE_URL") or os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL, echo=False)
 Base = declarative_base()
 
