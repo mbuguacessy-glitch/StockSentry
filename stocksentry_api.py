@@ -11,7 +11,8 @@ import httpx
 import json
 import os
 
-load_dotenv(override=False)
+load_dotenv(dotenv_path=os.path.join(
+    os.path.dirname(__file__), '.env'), override=False)
 
 app = FastAPI(title="StockSentry — Warehouse Stock Reconciliation")
 
