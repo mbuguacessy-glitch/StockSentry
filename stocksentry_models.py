@@ -10,6 +10,8 @@ load_dotenv(dotenv_path=os.path.join(
     os.path.dirname(__file__), '.env'), override=False)
 
 DATABASE_URL = os.environ.get("DATABASE_URL") or os.getenv("DATABASE_URL")
+print(
+    f"DATABASE_URL being used: {DATABASE_URL[:30] if DATABASE_URL else 'None'}")
 engine = create_engine(DATABASE_URL, echo=False)
 Base = declarative_base()
 
